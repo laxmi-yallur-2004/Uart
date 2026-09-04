@@ -1,9 +1,10 @@
-TEST LOG
+# TEST LOG
 
 Board: Arduino Uno
 MCU: ATmega328P
 
-Pin Configuration:
+## PIN CONFIGURATION
+
 LCD RS = D8
 LCD EN = D9
 LCD D4 = D4
@@ -12,29 +13,55 @@ LCD D6 = D6
 LCD D7 = D7
 SELECT = A0
 
-Test 1:
-Power ON
-Expected: SYSTEM IDLE
+## MODULE 1 - UART
+
+Test 1: Buffer empty after initialization
 Result: PASS
 
-Test 2:
-Press SELECT
-Expected: RUNNING
+Test 2: Get from empty buffer
 Result: PASS
 
-Test 3:
-Wait 5 seconds
-Expected: DONE
+Test 3: Put and get character A
 Result: PASS
 
-Test 4:
-Wait 2 seconds
-Expected: SYSTEM IDLE
+Test 4: FIFO order A, B, C
 Result: PASS
 
-Memory Test:
+Test 5: Buffer full
+Result: PASS
+
+Test 6: Overflow rejects new data
+Result: PASS
+
+Test 7: Overflow counter
+Result: PASS
+
+## MODULE 2 - STATE MACHINE
+
+Test 1: Power ON → IDLE
+Result: PASS
+
+Test 2: Press SELECT → RUNNING
+Result: PASS
+
+Test 3: Wait 5 seconds → DONE
+Result: PASS
+
+Test 4: Wait 2 seconds in DONE → IDLE
+Result: PASS
+
+## MEMORY TEST
+
 Flash Used = 3032 bytes
 SRAM Used = 292 bytes
 SRAM Remaining = 1756 bytes
 
 Result: PASS
+
+## OVERALL RESULT
+
+UART: PASS
+State Machine: PASS
+Memory: PASS
+
+Overall Result: PASS
