@@ -1,0 +1,105 @@
+# Memory Map Analysis
+
+**Board:** Arduino Uno
+**MCU:** ATmega328P
+
+## 1. Flash Memory
+
+| Section              |           Used |
+| -------------------- | -------------: |
+| `.text`              |     2936 bytes |
+| `.data`              |       96 bytes |
+| **Total Flash Used** | **3032 bytes** |
+
+Arduino Uno Flash = **32,256 bytes**
+
+**Flash remaining:**
+
+`32,256 - 3,032 = 29,224 bytes`
+
+**Flash usage = about 9%**
+
+### Meaning
+
+* `.text` → contains the program code.
+* `.data` → contains initialized global variables.
+
+---
+
+## 2. SRAM Memory
+
+| Section              |          Used |
+| -------------------- | ------------: |
+| `.data`              |      96 bytes |
+| `.bss`               |     196 bytes |
+| **Global SRAM Used** | **292 bytes** |
+
+Arduino Uno SRAM = **2,048 bytes**
+
+**SRAM remaining:**
+
+`2,048 - 292 = 1,756 bytes`
+
+**SRAM usage = about 14%**
+
+### Meaning
+
+* `.data` → initialized global variables.
+* `.bss` → uninitialized global variables.
+
+---
+
+## 3. Stack
+
+The **1,756 bytes remaining SRAM** can be used by:
+
+* Local variables
+* Function calls
+* Interrupts
+* Runtime stack
+
+**Important:** 1,756 bytes is the **available stack/SRAM budget**, not the actual stack used.
+
+Actual peak stack usage needs runtime measurement.
+
+---
+
+## 4. Memory Budget
+
+| Memory         |   Used | Available |                               Usage |
+| -------------- | -----: | --------: | ----------------------------------: |
+| Flash          | 3032 B |   32256 B |                                 ~9% |
+| SRAM           |  292 B |    2048 B |                                ~14% |
+| Remaining SRAM | 1756 B |         — | Available for stack/local variables |
+
+---
+
+## 5. Evidence
+
+From the actual compiled firmware:
+
+```text
+.text = 2936 bytes
+.data =   96 bytes
+.bss  =  196 bytes
+```
+
+Therefore:
+
+```text
+Flash = 2936 + 96 = 3032 bytes
+
+SRAM = 96 + 196 = 292 bytes
+
+Remaining SRAM = 2048 - 292 = 1756 bytes
+```
+
+### Final Result
+
+**Flash:** 3032 / 32256 bytes → approximately **9% used**
+
+**SRAM:** 292 / 2048 bytes → approximately **14% used**
+
+**Remaining SRAM:** **1756 bytes**
+
+The firmware is **well within the Arduino Uno memory limits**.
