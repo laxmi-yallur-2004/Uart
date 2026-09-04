@@ -1,0 +1,281 @@
+#include <LiquidCrystal.h>
+
+// LCD: RS, EN, D4, D5, D6, D7
+LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
+
+// ==================================================
+// UART RING BUFFER
+// ==================================================
+
+#define BUFFER_SIZE 16
+
+struct RingBuffer
+{
+  char buffer[BUFFER_SIZE];
+  volatile uint8_t head;
+  volatile uint8_t tail;
+  volatile uint16_t overflow;
+};
+
+RingBuffer rxBuffer;
+RingBuffer txBuffer;
+
+// Initialize buffer
+void bufferInit(RingBuffer &rb)
+{
+  rb.head = 0;
+  rb.tail = 0;
+  rb.overflow = 0;
+}
+
+// Check empty
+bool bufferEmpty(RingBuffer &rb)
+{
+  return rb.head == rb.tail;
+}
+
+// Check full
+bool bufferFull(RingBuffer &rb)
+{
+  uint8_t next = rb.head + 1;
+
+  if (next >= BUFFER_SIZE)
+    next = 0;
+
+  return next == rb.tail;
+}
+
+// Add data
+bool bufferPut(RingBuffer &rb, char data)
+{
+  noInterrupts();
+
+  uint8_t next = rb.head + 1;
+
+  if (next >= BUFFER_SIZE)
+    next = 0;
+
+  // Overflow policy = DROP NEW DATA
+  if (next == rb.tail)
+  {
+    rb.overflow++;
+    interrupts();
+    return false;
+  }
+
+  rb.buffer[rb.head] = data;
+  rb.head = next;
+
+  interrupts();
+
+  return true;
+}
+
+// Get data
+bool bufferGet(RingBuffer &rb, char &data)
+{
+  noInterrupts();
+
+  if (rb.head == rb.tail)
+  {
+    interrupts();
+    return false;
+  }
+
+  data = rb.buffer[rb.tail];
+
+  rb.tail++;
+
+  if (rb.tail >= BUFFER_SIZE)
+    rb.tail = 0;
+
+  interrupts();
+
+  return true;
+}
+
+// ==================================================
+// PASS / FAIL
+// ==================================================
+
+int passCount = 0;
+int failCount = 0;
+
+void testResult(const char *name, bool result)
+{
+  if (result)
+  {
+    Serial.print("PASS: ");
+    Serial.println(name);
+    passCount++;
+  }
+  else
+  {
+    Serial.print("FAIL: ");
+    Serial.println(name);
+    failCount++;
+  }
+}
+
+// ==================================================
+// MODULE 1 TESTS
+// ==================================================
+
+void runTests()
+{
+  RingBuffer rb;
+  char data;
+
+  Serial.println();
+  Serial.println("===== MODULE 1 TESTS =====");
+
+  // Test 1
+  bufferInit(rb);
+
+  testResult(
+    "Buffer empty after init",
+    bufferEmpty(rb)
+  );
+
+  // Test 2
+  testResult(
+    "Get from empty buffer fails",
+    !bufferGet(rb, data)
+  );
+
+  // Test 3
+  testResult(
+    "Put A",
+    bufferPut(rb, 'A')
+  );
+
+  // Test 4
+  bool getA = bufferGet(rb, data);
+
+  testResult(
+    "Get returns A",
+    getA && data == 'A'
+  );
+
+  // Test 5 - FIFO
+  bufferPut(rb, 'A');
+  bufferPut(rb, 'B');
+  bufferPut(rb, 'C');
+
+  bufferGet(rb, data);
+  bool fifoA = (data == 'A');
+
+  bufferGet(rb, data);
+  bool fifoB = (data == 'B');
+
+  bufferGet(rb, data);
+  bool fifoC = (data == 'C');
+
+  testResult(
+    "FIFO order A B C",
+    fifoA && fifoB && fifoC
+  );
+
+  // Test 6 - Full / overflow
+  bufferInit(rb);
+
+  for (int i = 0; i < BUFFER_SIZE - 1; i++)
+  {
+    bufferPut(rb, 'X');
+  }
+
+  testResult(
+    "Buffer becomes full",
+    bufferFull(rb)
+  );
+
+  bool overflowResult = bufferPut(rb, 'Y');
+
+  testResult(
+    "Overflow rejects new data",
+    !overflowResult
+  );
+
+  testResult(
+    "Overflow counter increments",
+    rb.overflow == 1
+  );
+
+  // Summary
+  Serial.println("==========================");
+  Serial.print("TOTAL PASS: ");
+  Serial.println(passCount);
+
+  Serial.print("TOTAL FAIL: ");
+  Serial.println(failCount);
+  Serial.println("==========================");
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("PASS:");
+  lcd.print(passCount);
+
+  lcd.setCursor(9, 0);
+  lcd.print("FAIL:");
+  lcd.print(failCount);
+
+  lcd.setCursor(0, 1);
+
+  if (failCount == 0)
+    lcd.print("MODULE 1 PASS");
+  else
+    lcd.print("CHECK FAILURES");
+}
+
+// ==================================================
+// SETUP
+// ==================================================
+
+void setup()
+{
+  Serial.begin(9600);
+
+  lcd.begin(16, 2);
+
+  lcd.setCursor(0, 0);
+  lcd.print("Module 1 Test");
+
+  lcd.setCursor(0, 1);
+  lcd.print("Starting...");
+
+  bufferInit(rxBuffer);
+  bufferInit(txBuffer);
+
+  delay(1000);
+
+  runTests();
+}
+
+// ==================================================
+// LOOP
+// ==================================================
+
+void loop()
+{
+  // Receive data from PC through Serial
+  while (Serial.available() > 0)
+  {
+    char incoming = Serial.read();
+
+    bufferPut(rxBuffer, incoming);
+  }
+
+  // Move RX data to TX buffer
+  char data;
+
+  if (bufferGet(rxBuffer, data))
+  {
+    bufferPut(txBuffer, data);
+  }
+
+  // Send TX data
+  if (bufferGet(txBuffer, data))
+  {
+    Serial.write(data);
+  }
+}
