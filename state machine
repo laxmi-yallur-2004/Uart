@@ -1,0 +1,96 @@
+#include <LiquidCrystal.h>
+
+// LCD pins
+LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
+
+// Device states
+enum DeviceState
+{
+  IDLE,
+  RUNNING,
+  DONE
+};
+
+DeviceState state = IDLE;
+
+unsigned long startTime = 0;
+
+void setup()
+{
+  lcd.begin(16, 2);
+  Serial.begin(9600);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("DEVICE WORKFLOW");
+
+  lcd.setCursor(0, 1);
+  lcd.print("IDLE");
+
+  Serial.println("State: IDLE");
+}
+
+void loop()
+{
+  unsigned long currentTime = millis();
+
+  switch (state)
+  {
+    case IDLE:
+
+      // Start device when SELECT button is pressed
+      if (analogRead(A0) < 100)
+      {
+        state = RUNNING;
+        startTime = currentTime;
+
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("STATE:");
+        lcd.setCursor(0, 1);
+        lcd.print("RUNNING");
+
+        Serial.println("State: RUNNING");
+      }
+
+      break;
+
+
+    case RUNNING:
+
+      // Run for 5 seconds without blocking
+      if (currentTime - startTime >= 5000)
+      {
+        state = DONE;
+
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("STATE:");
+        lcd.setCursor(0, 1);
+        lcd.print("DONE");
+
+        Serial.println("State: DONE");
+      }
+
+      break;
+
+
+    case DONE:
+
+      // After 2 seconds, return to IDLE
+      if (currentTime - startTime >= 7000)
+      {
+        state = IDLE;
+
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("STATE:");
+        lcd.setCursor(0, 1);
+        lcd.print("IDLE");
+
+        Serial.println("State: IDLE");
+      }
+
+      break;
+  }
+}
