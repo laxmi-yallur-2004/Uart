@@ -4,100 +4,179 @@ LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
 
 #define SIZE 16
 
-struct Buffer {
-  char data[SIZE];
-  byte head = 0;
-  byte tail = 0;
-  int overflow = 0;
-};
+// RX buffer
+char rxBuffer[SIZE];
+int rxHead = 0;
+int rxTail = 0;
+int rxOverflow = 0;
 
-Buffer rx, tx;
+// TX buffer
+char txBuffer[SIZE];
+int txHead = 0;
+int txTail = 0;
+int txOverflow = 0;
 
-bool put(Buffer &b, char c)
+
+// Add data to buffer
+bool addData(char buffer[], int &head, int tail, int &overflow, char data)
 {
-  byte next = (b.head + 1) % SIZE;
+  int next = head + 1;
 
-  if (next == b.tail) {
-    b.overflow++;
+  if (next == SIZE)
+    next = 0;
+
+  // Buffer full
+  if (next == tail)
+  {
+    overflow++;
     return false;
   }
 
-  b.data[b.head] = c;
-  b.head = next;
+  buffer[head] = data;
+  head = next;
+
   return true;
 }
 
-bool get(Buffer &b, char &c)
+
+// Remove data from buffer
+bool getData(char buffer[], int &head, int &tail, char &data)
 {
-  if (b.head == b.tail)
+  // Buffer empty
+  if (head == tail)
     return false;
 
-  c = b.data[b.tail];
-  b.tail = (b.tail + 1) % SIZE;
+  data = buffer[tail];
+
+  tail++;
+
+  if (tail == SIZE)
+    tail = 0;
+
   return true;
 }
+
 
 void setup()
 {
   Serial.begin(9600);
 
   lcd.begin(16, 2);
-  lcd.print("Module 1 Test");
 
-  // ---------- TEST ----------
-  Buffer test;
-  char c;
+  // ---------------- TESTS ----------------
 
-  // Empty test
-  bool t1 = (test.head == test.tail);
+  int pass = 0;
+  int fail = 0;
 
-  // Put A and get A
-  put(test, 'A');
-  bool t2 = get(test, c) && c == 'A';
+  char data;
 
-  // FIFO test
-  put(test, 'A');
-  put(test, 'B');
-  put(test, 'C');
+  // Test 1: Empty buffer
+  if (rxHead == rxTail)
+  {
+    Serial.println("PASS: Buffer Empty");
+    pass++;
+  }
+  else
+  {
+    Serial.println("FAIL: Buffer Empty");
+    fail++;
+  }
 
-  get(test, c);
-  bool t3 = c == 'A';
 
-  get(test, c);
-  bool t4 = c == 'B';
+  // Test 2: Put A
+  if (addData(rxBuffer, rxHead, rxTail, rxOverflow, 'A'))
+  {
+    Serial.println("PASS: Put A");
+    pass++;
+  }
+  else
+  {
+    Serial.println("FAIL: Put A");
+    fail++;
+  }
 
-  get(test, c);
-  bool t5 = c == 'C';
 
-  // Overflow test
-  test.head = 0;
-  test.tail = 0;
-  test.overflow = 0;
+  // Test 3: Get A
+  if (getData(rxBuffer, rxHead, rxTail, data) && data == 'A')
+  {
+    Serial.println("PASS: Get A");
+    pass++;
+  }
+  else
+  {
+    Serial.println("FAIL: Get A");
+    fail++;
+  }
+
+
+  // Test 4: FIFO
+  addData(rxBuffer, rxHead, rxTail, rxOverflow, 'A');
+  addData(rxBuffer, rxHead, rxTail, rxOverflow, 'B');
+  addData(rxBuffer, rxHead, rxTail, rxOverflow, 'C');
+
+  getData(rxBuffer, rxHead, rxTail, data);
+
+  if (data == 'A')
+  {
+    getData(rxBuffer, rxHead, rxTail, data);
+
+    if (data == 'B')
+    {
+      getData(rxBuffer, rxHead, rxTail, data);
+
+      if (data == 'C')
+      {
+        Serial.println("PASS: FIFO A B C");
+        pass++;
+      }
+      else
+        fail++;
+    }
+    else
+      fail++;
+  }
+  else
+    fail++;
+
+
+  // Test 5: Overflow
+  rxHead = 0;
+  rxTail = 0;
+  rxOverflow = 0;
 
   for (int i = 0; i < SIZE - 1; i++)
-    put(test, 'X');
+  {
+    addData(rxBuffer, rxHead, rxTail, rxOverflow, 'X');
+  }
 
-  bool t6 = !put(test, 'Y');
-  bool t7 = test.overflow == 1;
+  // Try adding one more
+  addData(rxBuffer, rxHead, rxTail, rxOverflow, 'Y');
 
-  int pass = t1 + t2 + t3 + t4 + t5 + t6 + t7;
-  int fail = 7 - pass;
+  if (rxOverflow == 1)
+  {
+    Serial.println("PASS: Overflow");
+    pass++;
+  }
+  else
+  {
+    Serial.println("FAIL: Overflow");
+    fail++;
+  }
 
-  Serial.println("===== MODULE 1 TESTS =====");
 
-  Serial.println(t1 ? "PASS: Empty" : "FAIL: Empty");
-  Serial.println(t2 ? "PASS: Put/Get" : "FAIL: Put/Get");
-  Serial.println(t3 && t4 && t5 ? "PASS: FIFO" : "FAIL: FIFO");
-  Serial.println(t6 ? "PASS: Overflow" : "FAIL: Overflow");
-  Serial.println(t7 ? "PASS: Counter" : "FAIL: Counter");
+  // ---------------- RESULT ----------------
 
+  Serial.println();
   Serial.print("TOTAL PASS: ");
   Serial.println(pass);
 
   Serial.print("TOTAL FAIL: ");
   Serial.println(fail);
 
+
   lcd.clear();
+
+  lcd.setCursor(0, 0);
   lcd.print("PASS:");
   lcd.print(pass);
 
@@ -113,20 +192,30 @@ void setup()
     lcd.print("CHECK FAILURES");
 }
 
+
 void loop()
 {
-  char c;
+  char data;
 
-  // PC -> RX
-  while (Serial.available()) {
-    put(rx, Serial.read());
+  // PC -> RX buffer
+  while (Serial.available())
+  {
+    data = Serial.read();
+
+    addData(rxBuffer, rxHead, rxTail, rxOverflow, data);
   }
 
-  // RX -> TX
-  if (get(rx, c))
-    put(tx, c);
 
-  // TX -> PC
-  if (get(tx, c))
-    Serial.write(c);
+  // RX buffer -> TX buffer
+  if (getData(rxBuffer, rxHead, rxTail, data))
+  {
+    addData(txBuffer, txHead, txTail, txOverflow, data);
+  }
+
+
+  // TX buffer -> PC
+  if (getData(txBuffer, txHead, txTail, data))
+  {
+    Serial.write(data);
+  }
 }
