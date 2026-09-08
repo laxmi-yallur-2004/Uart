@@ -1,9 +1,8 @@
 #include <LiquidCrystal.h>
 
-// LCD pins
 LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
 
-// Device states
+// States
 enum DeviceState
 {
   IDLE,
@@ -20,10 +19,11 @@ void setup()
   lcd.begin(16, 2);
   Serial.begin(9600);
 
+  pinMode(2, INPUT_PULLUP);
+
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("DEVICE WORKFLOW");
-
+  lcd.print("STATE:");
   lcd.setCursor(0, 1);
   lcd.print("IDLE");
 
@@ -38,8 +38,8 @@ void loop()
   {
     case IDLE:
 
-      // Start device when SELECT button is pressed
-      if (analogRead(A0) < 100)
+      // Button pressed
+      if (digitalRead(2) == LOW)
       {
         state = RUNNING;
         startTime = currentTime;
@@ -51,6 +51,8 @@ void loop()
         lcd.print("RUNNING");
 
         Serial.println("State: RUNNING");
+
+        delay(200);   // simple button debounce
       }
 
       break;
@@ -58,7 +60,7 @@ void loop()
 
     case RUNNING:
 
-      // Run for 5 seconds without blocking
+      // Stay RUNNING for 5 seconds
       if (currentTime - startTime >= 5000)
       {
         state = DONE;
@@ -77,7 +79,7 @@ void loop()
 
     case DONE:
 
-      // After 2 seconds, return to IDLE
+      // Stay DONE for 2 seconds
       if (currentTime - startTime >= 7000)
       {
         state = IDLE;
