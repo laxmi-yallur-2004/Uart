@@ -1,67 +1,121 @@
 # TEST LOG
 
-Board: Arduino Uno
-MCU: ATmega328P
+**Board:** Arduino Uno
+**MCU:** ATmega328P
+**Baud Rate:** 9600
 
 ## PIN CONFIGURATION
 
-LCD RS = D8
-LCD EN = D9
-LCD D4 = D4
-LCD D5 = D5
-LCD D6 = D6
-LCD D7 = D7
-SELECT = A0
+| Device        | Pin |
+| ------------- | --- |
+| LCD RS        | D8  |
+| LCD EN        | D9  |
+| LCD D4        | D4  |
+| LCD D5        | D5  |
+| LCD D6        | D6  |
+| LCD D7        | D7  |
+| SELECT Button | A0  |
 
-## MODULE 1 - UART
+---
 
-Test 1: Buffer empty after initialization
-Result: PASS
+## MODULE 1 - UART RING BUFFER
 
-Test 2: Get from empty buffer
-Result: PASS
+### Test 1: Buffer empty after initialization
 
-Test 3: Put and get character A
-Result: PASS
+**Result:** PASS
 
-Test 4: FIFO order A, B, C
-Result: PASS
+### Test 2: Get from empty buffer fails
 
-Test 5: Buffer full
-Result: PASS
+**Result:** PASS
 
-Test 6: Overflow rejects new data
-Result: PASS
+### Test 3: Put A
 
-Test 7: Overflow counter
-Result: PASS
+**Result:** PASS
 
-## MODULE 2 - STATE MACHINE
+### Test 4: Get returns A
 
-Test 1: Power ON → IDLE
-Result: PASS
+**Result:** PASS
 
-Test 2: Press SELECT → RUNNING
-Result: PASS
+### Test 5: FIFO order A, B, C
 
-Test 3: Wait 5 seconds → DONE
-Result: PASS
+**Result:** PASS
 
-Test 4: Wait 2 seconds in DONE → IDLE
-Result: PASS
+### Test 6: Buffer becomes full
+
+**Result:** PASS
+
+### Test 7: Overflow rejects new data
+
+**Result:** PASS
+
+### Test 8: Overflow counter increments
+
+**Result:** PASS
+
+### Module 1 Summary
+
+```text
+TOTAL TESTS: 8
+TOTAL PASS: 8
+TOTAL FAIL: 0
+
+MODULE 1 RESULT: PASS
+```
+
+---
+
+## MODULE 2 - NON-BLOCKING STATE MACHINE
+
+### Test 1: Power ON → IDLE
+
+**Result:** PASS
+
+### Test 2: Press SELECT → RUNNING
+
+**Result:** PASS
+
+### Test 3: RUNNING for 5 seconds → DONE
+
+**Result:** PASS
+
+### Test 4: DONE for 2 seconds → IDLE
+
+**Result:** PASS
+
+### Module 2 Summary
+
+```text
+TOTAL TESTS: 4
+TOTAL PASS: 4
+TOTAL FAIL: 0
+
+MODULE 2 RESULT: PASS
+```
+
+---
 
 ## MEMORY TEST
 
-Flash Used = 3032 bytes
-SRAM Used = 292 bytes
-SRAM Remaining = 1756 bytes
+**Flash Used:** 3032 bytes
+**Flash Available:** 32256 bytes
+**Flash Remaining:** 29224 bytes
 
-Result: PASS
+**SRAM Used:** 292 bytes
+**SRAM Available:** 2048 bytes
+**SRAM Remaining:** 1756 bytes
 
-## OVERALL RESULT
+**Result:** PASS
 
-UART: PASS
-State Machine: PASS
-Memory: PASS
+> Note: SRAM remaining is the available budget for runtime variables and stack. It is not the measured peak stack usage.
 
-Overall Result: PASS
+---
+
+# OVERALL RESULT
+
+```text
+UART RING BUFFER: PASS
+STATE MACHINE:    PASS
+MEMORY:           PASS
+
+OVERALL RESULT:   PASS
+```
