@@ -1,22 +1,20 @@
-
-#include <LiquidCrystal.h>
-
 // =====================================================
 // MODULE 2 - NON-BLOCKING STATE MACHINE
 // Arduino Uno
 // =====================================================
+//
+// LCD is declared in uart.ino
+// setup() is in uart.ino
+// loop() is in uart.ino
+//
+// This file contains ONLY the state-machine logic.
+// =====================================================
 
-// LCD pins
-// RS -> D8
-// EN -> D9
-// D4 -> D4
-// D5 -> D5
-// D6 -> D6
-// D7 -> D7
 
-LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
+// =====================================================
+// DEVICE STATES
+// =====================================================
 
-// Device states
 enum DeviceState
 {
   IDLE,
@@ -24,120 +22,123 @@ enum DeviceState
   DONE
 };
 
+
+// =====================================================
+// CURRENT STATE
+// =====================================================
+
 DeviceState state = IDLE;
 
-// Time when RUNNING started
+
+// =====================================================
+// TIME WHEN RUNNING STARTED
+// =====================================================
+
 unsigned long startTime = 0;
 
-void setup()
+
+// =====================================================
+// INITIALIZE STATE MACHINE
+// =====================================================
+
+void stateMachineInit()
 {
-  // Initialize LCD
-  lcd.begin(16, 2);
-
-  // Initialize Serial
-  Serial.begin(9600);
-
-  // Initial LCD display
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("DEVICE WORKFLOW");
-
-  lcd.setCursor(0, 1);
-  lcd.print("IDLE");
-
-  Serial.println("State: IDLE");
+  state = IDLE;
+  startTime = 0;
 }
 
-void loop()
+
+// =====================================================
+// UPDATE STATE MACHINE
+// NON-BLOCKING
+// =====================================================
+
+void stateMachineUpdate()
 {
-  // Get current time
+  // Current time
   unsigned long currentTime = millis();
 
-  // Check current state
-  switch (state)
+  // ===================================================
+  // IDLE STATE
+  // ===================================================
+
+  if (state == IDLE)
   {
-    // =================================================
-    // IDLE STATE
-    // =================================================
-    case IDLE:
+    // SELECT button connected to A0
+    if (analogRead(A0) < 100)
+    {
+      // Change state
+      state = RUNNING;
 
-      // SELECT button connected to A0
-      if (analogRead(A0) < 100)
-      {
-        // Change state
-        state = RUNNING;
+      // Save starting time
+      startTime = currentTime;
 
-        // Save starting time
-        startTime = currentTime;
+      // Display RUNNING
+      lcd.clear();
 
-        // Display RUNNING on LCD
-        lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("STATE:");
 
-        lcd.setCursor(0, 0);
-        lcd.print("STATE:");
+      lcd.setCursor(0, 1);
+      lcd.print("RUNNING");
 
-        lcd.setCursor(0, 1);
-        lcd.print("RUNNING");
+      // UART message
+      uartSendString("State: RUNNING\r\n");
+    }
+  }
 
-        // Send message to Serial Monitor
-        Serial.println("State: RUNNING");
-      }
+  // ===================================================
+  // RUNNING STATE
+  // ===================================================
 
-      break;
+  else if (state == RUNNING)
+  {
+    // Stay RUNNING for 5 seconds
+    if (currentTime - startTime >= 5000)
+    {
+      // Change state
+      state = DONE;
 
+      // Display DONE
+      lcd.clear();
 
-    // =================================================
-    // RUNNING STATE
-    // =================================================
-    case RUNNING:
+      lcd.setCursor(0, 0);
+      lcd.print("STATE:");
 
-      // Stay in RUNNING for 5 seconds
-      if (currentTime - startTime >= 5000)
-      {
-        // Change state
-        state = DONE;
+      lcd.setCursor(0, 1);
+      lcd.print("DONE");
 
-        // Display DONE on LCD
-        lcd.clear();
+      // UART message
+      uartSendString("State: DONE\r\n");
+    }
+  }
 
-        lcd.setCursor(0, 0);
-        lcd.print("STATE:");
+  // ===================================================
+  // DONE STATE
+  // ===================================================
 
-        lcd.setCursor(0, 1);
-        lcd.print("DONE");
+  else if (state == DONE)
+  {
+    // Total 7 seconds:
+    // 5 seconds RUNNING
+    // 2 seconds DONE
 
-        // Send message to Serial Monitor
-        Serial.println("State: DONE");
-      }
+    if (currentTime - startTime >= 7000)
+    {
+      // Return to IDLE
+      state = IDLE;
 
-      break;
+      // Display IDLE
+      lcd.clear();
 
+      lcd.setCursor(0, 0);
+      lcd.print("STATE:");
 
-    // =================================================
-    // DONE STATE
-    // =================================================
-    case DONE:
+      lcd.setCursor(0, 1);
+      lcd.print("IDLE");
 
-      // 5 seconds RUNNING + 2 seconds DONE = 7 seconds
-      if (currentTime - startTime >= 7000)
-      {
-        // Return to IDLE
-        state = IDLE;
-
-        // Display IDLE on LCD
-        lcd.clear();
-
-        lcd.setCursor(0, 0);
-        lcd.print("STATE:");
-
-        lcd.setCursor(0, 1);
-        lcd.print("IDLE");
-
-        // Send message to Serial Monitor
-        Serial.println("State: IDLE");
-      }
-
-      break;
+      // UART message
+      uartSendString("State: IDLE\r\n");
+    }
   }
 }
-
