@@ -74,7 +74,7 @@ SRAM Usage: ~14%
 ```text
 README.md
 module1_uart.ino
-module2_state_machine.ino
+module1_state_machine.ino
 memory_map_analysis.md
 test_logs.txt
 ```
